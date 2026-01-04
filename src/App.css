@@ -86,7 +86,7 @@ body {
 }
 
 .stone.white {
-  background: radial-gradient(circle at 30% 30%, #fff, #ddd);
+  background: radial-gradient(circle at 30% 30%, #fff, #888);
 }
 
 /* リセットボタン */
