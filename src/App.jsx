@@ -18,16 +18,24 @@ function App() {
 
   // CPUモードかどうか
   const [isCpuMode, setIsCpuMode] = useState(true);
-  // ：難易度設定
-//   const [difficulty, setDifficulty] = useState('easy');
+
+  // ★難易度設定（
+  // const [difficulty, setDifficulty] = useState('hard'); // 初期値をhardにしておく
+
+  // パス通知用の状態管理（アラートの代わり）
+  const [passMessage, setPassMessage] = useState(null);
+  const [nextTurnAfterPass, setNextTurnAfterPass] = useState(null);
 
   // スコア計算
   useEffect(() => {
     setScores(countStone(board));
   }, [board]);
 
- // AIの行動（1手読み強化版）
+  // AIの行動
   const cpuMove = () => {
+    // パス表示中は動かない
+    if (passMessage) return;
+
     const validMoves = [];
     for (let y = 0; y < 8; y++) {
       for (let x = 0; x < 8; x++) {
@@ -38,25 +46,28 @@ function App() {
     }
 
     if (validMoves.length === 0) {
-      passTurn();
+      triggerPass("白は置ける場所がありません！パス！", BLACK);
       return;
     }
 
     let selectedMove;
 
+    // ▼▼▼ 難易度分岐（今はコメントアウトして常にHardを実行） ▼▼▼
+
     // if (difficulty === 'easy') {
     //   // Easy: ランダム
     //   const randomIndex = Math.floor(Math.random() * validMoves.length);
     //   selectedMove = validMoves[randomIndex];
-   // } else {
+    // } else {
+
       // Hard: 1手先を読んで、危険な手は避ける！
       let bestScore = -9999;
 
       validMoves.forEach((move) => {
         // 1. 基本点数（場所の良さ）
         let score = BOARD_WEIGHTS[move.row][move.col];
+
         // 2. 未来予知（シミュレーション）開始！
-        // 試しに今の盤面をコピーして、石を置いてみる
         const tempBoard = structuredClone(board);
         const flippable = getFlippableStones(move.row, move.col, WHITE, tempBoard);
 
@@ -65,6 +76,7 @@ function App() {
         flippable.forEach(({ row, col }) => {
           tempBoard[row][col] = WHITE;
         });
+
         // 3. 相手（黒）のターンになったと仮定して、相手に「角」を取られるかチェック
         const corners = [
           { r: 0, c: 0 }, { r: 0, c: 7 },
@@ -72,23 +84,24 @@ function App() {
         ];
         let givesCorner = false;
         corners.forEach((corner) => {
-          // もし相手が角に置ける状態になっていたら...
-          // (相手の石=BLACK でチェック)
           if (getFlippableStones(corner.r, corner.c, BLACK, tempBoard).length > 0) {
             givesCorner = true;
           }
         });
+
         // 4. もし角を取られる手なら、点数を激減させる
         if (givesCorner) {
-          score -= 1000; // 絶対に選びたくない手にする
+          score -= 1000;
         }
+
         // ベストスコアの更新
         if (score >= bestScore) {
           bestScore = score;
           selectedMove = move;
         }
       });
-   // }
+    // } ▲▲▲ 分岐終了 ▲▲▲
+
     executeMove(selectedMove.row, selectedMove.col);
   };
 
@@ -114,21 +127,28 @@ function App() {
     } else {
       const currentTurn = nextTurn === BLACK ? WHITE : BLACK;
       if (hasValidMove(currentBoard, currentTurn)) {
-        setTimeout(() => {
-            alert(`${nextTurn === BLACK ? "黒" : "白"}は置ける場所がありません！パス！`);
-            setTurn(currentTurn);
-        }, 10);
+        // カスタム通知を呼ぶ
+        const msg = `${nextTurn === BLACK ? "黒" : "白"}は置ける場所がありません！パス！`;
+        triggerPass(msg, currentTurn);
       } else {
         finishGame(currentBoard);
       }
     }
   };
 
-  const passTurn = () => {
-     setTimeout(() => {
-        alert("白は置ける場所がありません！パス！");
-        setTurn(BLACK);
-     }, 800);
+  // パス発生時の処理（アラートを出さずに状態をセット）
+  const triggerPass = (message, nextColor) => {
+    setTimeout(() => {
+      setPassMessage(message);
+      setNextTurnAfterPass(nextColor);
+    }, 500);
+  };
+
+  // パスのOKボタンを押した時の処理
+  const handlePassOk = () => {
+    setPassMessage(null);
+    setTurn(nextTurnAfterPass);
+    setNextTurnAfterPass(null);
   };
 
   const finishGame = (finalBoard) => {
@@ -144,7 +164,8 @@ function App() {
   };
 
   const handleClick = (row, col) => {
-    if (winner || board[row][col] || (isCpuMode && turn === WHITE)) return;
+    // パス表示中もクリックできないようにする
+    if (winner || board[row][col] || (isCpuMode && turn === WHITE) || passMessage) return;
     executeMove(row, col);
   };
 
@@ -152,24 +173,34 @@ function App() {
     setBoard(getInitialBoard());
     setTurn(BLACK);
     setWinner(null);
+    setPassMessage(null);
   };
 
   // AIの思考
   useEffect(() => {
-    if (!isCpuMode || winner || turn === BLACK) return;
+    if (!isCpuMode || winner || turn === BLACK || passMessage) return;
 
     const timer = setTimeout(() => {
       cpuMove();
-    }, 2000);
+    }, 1500); // 考える時間
 
     return () => clearTimeout(timer);
-  }, [turn, isCpuMode, winner, board]);
+  }, [turn, isCpuMode, winner, board, passMessage]);
 
 
   return (
     <div className="game-container">
+
+      {/* ★パスのお知らせバー（アラートの代わり） */}
+      {passMessage && (
+        <div className="pass-notification">
+          <span className="pass-text">{passMessage}</span>
+          <button className="pass-ok-btn" onClick={handlePassOk}>OK</button>
+        </div>
+      )}
+
       {/* スコア表示 */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', margin: '10px 0', fontSize: '1.2rem', fontWeight: 'bold' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', margin: '30px 0 10px 0', fontSize: '1.2rem', fontWeight: 'bold' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span className="stone black" style={{ width: '30px', height: '30px', position: 'static', animation: 'none' }}></span>
           <span>{scores.black}</span>
@@ -181,7 +212,8 @@ function App() {
         </div>
       </div>
 
-      {winner && <p className="winner-popup" >{winner}</p>}
+      {/* 勝敗ポップアップ */}
+      {winner && <div className="winner-popup">{winner}</div>}
 
       {/* 状態表示 */}
       <div style={{
@@ -234,7 +266,7 @@ function App() {
             </button>
         </div>
 
-        {/* 難易度ボタン（CPUモードの時だけ表示） */}
+        {/* ▼▼▼ 難易度ボタン（今はコメントアウト） ▼▼▼ */}
         {/* {isCpuMode && (
             <div style={{display:'flex', gap:'5px', alignItems: 'center', background: 'rgba(255,255,255,0.1)', padding: '5px 10px', borderRadius: '20px'}}>
                 <span style={{fontSize: '0.8rem', marginRight:'5px'}}>レベル:</span>
@@ -255,7 +287,8 @@ function App() {
                     onClick={() => setDifficulty('hard')}
                 >強い</button>
             </div>
-        )} */}
+        )}
+        */}
       </div>
     </div>
   );
