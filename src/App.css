@@ -38,7 +38,6 @@ body {
   font-weight: bold;
   padding: 60px 40px;
   border-radius: 10px;
-  z-index: 100;
   white-space: nowrap;
   box-shadow: 0 4px 15px rgba(70, 250, 180, 0.4);
 }

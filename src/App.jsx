@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Confetti from 'react-confetti';
 import './App.css';
 import {
   getInitialBoard,
@@ -25,6 +26,8 @@ function App() {
   // パス通知用の状態管理（アラートの代わり）
   const [passMessage, setPassMessage] = useState(null);
   const [nextTurnAfterPass, setNextTurnAfterPass] = useState(null);
+  // 紙吹雪を表示するかどうかのスイッチ
+  const [showConfetti, setShowConfetti] = useState(false);
 
   // スコア計算
   useEffect(() => {
@@ -100,7 +103,7 @@ function App() {
           selectedMove = move;
         }
       });
-    // } ▲▲▲ 分岐終了 ▲▲▲
+    // }  分岐終了
 
     executeMove(selectedMove.row, selectedMove.col);
   };
@@ -157,6 +160,9 @@ function App() {
 
     if (finalScores.black > finalScores.white) {
       resultMessage = isCpuMode ? "あなたの勝ち！🎉" : "黒の勝ち！⚫️";
+      if (isCpuMode) {
+        setShowConfetti(true);
+      }
     } else if (finalScores.white > finalScores.black) {
       resultMessage = isCpuMode ? "機械の勝ち...🤖" : "白の勝ち！⚪️";
     }
@@ -174,6 +180,7 @@ function App() {
     setTurn(BLACK);
     setWinner(null);
     setPassMessage(null);
+    setShowConfetti(false);
   };
 
   // AIの思考
@@ -189,6 +196,9 @@ function App() {
 
 
   return (
+    <>
+       {/*紙吹雪コンポーネント*/}
+      {showConfetti && <Confetti  numberOfPieces={500}/>}
     <div className="game-container">
 
       {/* ★パスのお知らせバー（アラートの代わり） */}
@@ -291,6 +301,7 @@ function App() {
         */}
       </div>
     </div>
+    </>
   );
 }
 
